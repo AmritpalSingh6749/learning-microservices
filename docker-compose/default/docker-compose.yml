@@ -1,0 +1,104 @@
+services:
+  rabbit:
+    image: rabbitmq:3.12-management
+    hostname: rabbitmq
+    extends:
+      file: common-config.yml
+      service: common-network-service
+    ports:
+      - 5672:5672
+      - 15672:15672
+    healthcheck:
+      test: rabbitmq-diagnostic check_port_connectivity
+      retries: 10
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+
+  gatewayserver:
+    image: stealybits/gatewayserver-microservice-sr:1.0.0-ag
+    container_name: gatewayserver-ms
+    ports:
+      - 8050:8050
+    extends:
+      file: common-config.yml
+      service: microservice-configserver-config
+    environment:
+      SPRING_APPLICATION_NAME: gatewayserver
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8040/eureka
+
+  configserver:
+    image: stealybits/configserver-microservice-sr:1.0.0-ag
+    container_name: configserver-ms
+    depends_on:
+      rabbit:
+        condition: service_completed_successfully
+    ports:
+      - 8030:8030
+    extends:
+      file: common-config.yml
+      service: microservice-base-config
+    healthcheck:
+      test: "curl --fail --silent configserver:8030/actuator/health/readiness | grep UP || exit 1"
+      retries: 10
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+    environment:
+      SPRING_APPLICATION_NAME: configserver
+      SPRING_RABBITMQ_HOST: "rabbit"
+
+  accounts:
+    image: stealybits/accounts-microservice-sr:1.0.0-ag
+    container_name: accounts-ms
+    ports:
+      - 8000:8000
+    extends:
+      file: common-config.yml
+      service: microservice-configserver-config
+    environment:
+      SPRING_APPLICATION_NAME: accounts
+      SPRING_DATASOURCE_URL: jdbc:mysql://accountsdb:3306/accountsdb
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8040/eureka
+
+
+  cards:
+    image: stealybits/cards-microservice-sr:1.0.0-ag
+    container_name: cards-ms
+    ports:
+      - 8010:8010
+    extends:
+      file: common-config.yml
+      service: microservice-configserver-config
+    environment:
+      SPRING_APPLICATION_NAME: cards
+      SPRING_DATASOURCE_URL: jdbc:mysql://cardsdb:3306/cardsdb
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8040/eureka
+
+  loans:
+    image: stealybits/loans-microservice-sr:1.0.0-ag
+    container_name: loans-ms
+    ports:
+      - 8020:8020
+    extends:
+      file: common-config.yml
+      service: microservice-configserver-config
+    environment:
+      SPRING_APPLICATION_NAME: loans
+      SPRING_DATASOURCE_URL: jdbc:mysql://loansdb:3306/loansdb
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eurekaserver:8040/eureka
+
+  eurekaserver:
+    image: stealybits/eurekaserver-microservice-sr:1.0.0-ag
+    container_name: eurekaserver-ms
+    ports:
+      - 8040:8040
+    extends:
+      file: common-config.yml
+      service: microservice-configserver-config
+    environment:
+      SPRING_APPLICATION_NAME: eurekaserver
+
+networks:
+  banknetwork:
+    driver: bridge

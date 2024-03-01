@@ -1,0 +1,88 @@
+server:
+  port: 8000
+spring:
+  application:
+    name: accounts
+  config:
+    import: configserver:http://localhost:8030
+  profiles:
+    active: "qa"
+  datasource:
+    username: root
+    password: root
+    url: jdbc:mysql://localhost:3306/accountsdb
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+    show-sql: true
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+    function:
+      definition: updateCommunication
+    stream:
+      bindings:
+        updateCommunication-in-0:
+          destination: communication-send
+          group: ${spring.application.name}
+        sendCommunication-out-0:
+          destination: send-communication
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    fetch-registry: true
+    register-with-eureka: true
+    service-url:
+      defaultZone: http://localhost:8040/eureka/
+
+info:
+  app:
+    name: accounts
+    description: "StealyBits mmicroservice"
+    version: 1.0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  info:
+    env:
+      enabled: true
+  endpoint:
+    shutdown:
+      enabled: true
+
+endpoints:
+  shutdown:
+    enabled: true
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 2
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+
+springdoc:
+  swagger-ui:
+    path: /swagger
+
+logging:
+  level:
+    com:
+      microservice:
+        Account: DEBUG
